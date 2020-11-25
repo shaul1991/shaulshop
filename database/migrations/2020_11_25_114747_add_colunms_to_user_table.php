@@ -36,7 +36,7 @@ class AddColunmsToUserTable extends Migration
         Schema::table(
             'users',
             function (Blueprint $table) {
-                //
+                $table->dropColumn(['role', 'is_receive_marketing_agree', 'phone_number', 'about', 'profile']);
             }
         );
     }

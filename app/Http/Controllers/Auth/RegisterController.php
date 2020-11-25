@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\AuthRegisterRequest;
 use App\Models\User;
 use App\Providers\RouteServiceProvider;
+use App\Services\UserRegister\Dto\UserRegisterDto;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Foundation\Auth\RegistersUsers;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 
 class RegisterController extends Controller
 {
@@ -42,36 +46,41 @@ class RegisterController extends Controller
     }
 
     /**
-     * Get a validator for an incoming registration request.
+     * Handle a registration request for the application.
      *
-     * @param array $data
-     * @return \Illuminate\Contracts\Validation\Validator
+     * @param Request $request
+     * @return RedirectResponse|JsonResponse
      */
-    protected function validator(array $data)
+    public function register(AuthRegisterRequest $request)
     {
-        return Validator::make(
-            $data,
-            [
-                'name' => ['required', 'string', 'max:255'],
-                'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-                'password' => ['required', 'string', 'min:8', 'confirmed'],
-            ]
+        $UserRegisterDto = new UserRegisterDto(
+            $request->get('name'),
+            $request->get('email'),
+            $request->get('password'),
+            $request->get('phone_number')
         );
+
+        event(new Registered($user = $this->create($UserRegisterDto)));
+
+        $this->guard()->login($user);
+
+        return $request->wantsJson()
+            ? new JsonResponse([], 201)
+            : redirect($this->redirectPath());
     }
 
     /**
-     * Create a new user instance after a valid registration.
-     *
-     * @param array $data
-     * @return User
+     * @param UserRegisterDto $UserRegisterDto
+     * @return mixed
      */
-    protected function create(array $data)
+    protected function create(UserRegisterDto $UserRegisterDto)
     {
         return User::create(
             [
-                'name' => $data['name'],
-                'email' => $data['email'],
-                'password' => Hash::make($data['password']),
+                'name' => $UserRegisterDto->getName(),
+                'email' => $UserRegisterDto->getEmail(),
+                'password' => $UserRegisterDto->getPassword(),
+                'phone_number' => $UserRegisterDto->getPhoneNumber(),
             ]
         );
     }
